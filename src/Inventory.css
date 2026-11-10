@@ -1,0 +1,362 @@
+
+.inventory-page {
+  width: 100%;
+}
+
+/* Page heading */
+.inventory-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.inventory-heading h1 {
+  margin: 0 0 9px;
+  color: #20252b;
+  font-size: 28px;
+  font-weight: 750;
+}
+
+.inventory-heading p {
+  margin: 0;
+  color: #68727c;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.inventory-add-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 17px;
+  border: 1px solid #333b45;
+  border-radius: 7px;
+  background: #333b45;
+  color: white;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.inventory-add-button:hover {
+  background: #252b33;
+}
+
+/* Search and filters */
+.inventory-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.inventory-search {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 430px;
+  max-width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #dfe3e7;
+  border-radius: 8px;
+  background: white;
+  color: #737d87;
+}
+
+.inventory-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #303943;
+  font-size: 14px;
+}
+
+.inventory-search input::placeholder {
+  color: #929ba4;
+}
+
+.inventory-filter-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 15px;
+  border: 1px solid #dfe3e7;
+  border-radius: 8px;
+  background: white;
+  color: #59636e;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.inventory-filter-button:hover {
+  background: #f5f6f7;
+}
+
+/* Categories */
+.inventory-categories {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 27px;
+}
+
+.category-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border: 1px solid #dfe3e7;
+  border-radius: 8px;
+  background: white;
+  color: #4f5964;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.category-button:hover {
+  background: #f3f4f6;
+}
+
+.category-button.selected {
+  background: #333b45;
+  border-color: #333b45;
+  color: white;
+}
+
+.category-button small {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* Product catalogue */
+.inventory-table-panel {
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  border-radius: 10px;
+  background: white;
+}
+
+.inventory-table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 21px 22px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.inventory-table-heading h3 {
+  margin: 0;
+  color: #303943;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.inventory-table-heading p {
+  margin: 7px 0 0;
+  color: #727c86;
+  font-size: 13px;
+}
+
+.inventory-record-count {
+  color: #59636e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Table scrolling */
+.table-scroll,
+.inventory-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.inventory-table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.inventory-table th {
+  padding: 16px 17px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e8eb;
+  color: #58636e;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.25px;
+}
+
+.inventory-table td {
+  padding: 17px;
+  border-bottom: 1px solid #edf0f2;
+  color: #414b55;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inventory-table tbody tr {
+  min-height: 55px;
+}
+
+.inventory-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.inventory-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.inventory-table td strong {
+  color: #303943;
+  font-weight: 650;
+}
+
+/* Product details */
+.inventory-table .product-sku {
+  color: #68727c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inventory-table .product-name {
+  color: #252b33;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.inventory-table .stock-number {
+  color: #303943;
+  font-weight: 650;
+}
+
+/* Stock status */
+.stock-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stock-status.available {
+  background: #edf4ef;
+  color: #4f785c;
+}
+
+.stock-status.low {
+  background: #f6f1e7;
+  color: #98712f;
+}
+
+.stock-status.out {
+  background: #f8eded;
+  color: #a34b4b;
+}
+
+/* Product actions */
+.product-more-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #68727c;
+  cursor: pointer;
+}
+
+.product-more-button:hover {
+  background: #f0f2f4;
+  color: #303943;
+}
+
+/* Empty state */
+.inventory-empty {
+  padding: 48px 20px !important;
+  text-align: center;
+  color: #727c86 !important;
+  font-size: 14px !important;
+}
+
+/* Messages and alerts */
+.inventory-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 13px 16px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  background: #f8f9fa;
+  color: #46515c;
+  font-size: 14px;
+}
+
+.inventory-message button {
+  border: none;
+  background: transparent;
+  color: #59636e;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Disclaimer */
+.inventory-disclaimer {
+  margin-top: 20px;
+  color: #737d87;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Responsive layout */
+@media (max-width: 750px) {
+  .inventory-heading {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .inventory-heading h1 {
+    font-size: 25px;
+  }
+
+  .inventory-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inventory-search {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .inventory-filter-button {
+    justify-content: center;
+  }
+
+  .inventory-categories {
+    gap: 7px;
+  }
+
+  .category-button {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .inventory-table-heading {
+    padding: 17px;
+  }
+}
