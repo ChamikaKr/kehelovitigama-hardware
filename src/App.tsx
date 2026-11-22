@@ -7,6 +7,7 @@ import SalesManagement from "./SalesManagement";
 import SalesHistory from "./SalesHistory";
 import StockCount from "./StockCount";
 import Purchases from "./Purchases";
+import SupplierManagement from "./SupplierManagement";
 import { supabase } from "./supabase";
 
 import {
@@ -657,6 +658,8 @@ function App() {
             <SalesManagement />
           ) : activePage === "Sales History" ? (
             <SalesHistory />
+          ) : activePage === "Suppliers" ? (
+            <SupplierManagement />
           ) : activePage === "Settings & Users" ? (
             <SettingsManagement userEmail={userEmail} />
           ) : (

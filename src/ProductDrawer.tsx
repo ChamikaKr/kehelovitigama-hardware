@@ -33,6 +33,7 @@ type InitialProduct = ProductDraft & {
 type ProductDrawerProps = {
   categories: string[];
   categoryGroups: CategoryGroup[];
+  existingSkus: string[];
   defaultCategory?: string;
   initialProduct?: InitialProduct;
   onClose: () => void;
@@ -40,6 +41,35 @@ type ProductDrawerProps = {
   onAddCategory: (category: string) => Promise<string | null>;
 };
 
+function abbreviateSegment(value: string): string {
+  const words = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .match(/[A-Z0-9]+/g) ?? [];
+
+  return words.length === 0 ? "" : words.length === 1 ? words[0] : words.map((word) => word[0]).join("");
+}
+
+function generateProductSku(product: ProductDraft, existingSkus: string[]): string {
+  const productSegment = [product.name, product.nameEn, product.category, product.nameSi]
+    .map(abbreviateSegment)
+    .find(Boolean) ?? "";
+  const brandSegment = abbreviateSegment(product.brand);
+  const variantSegment = [product.variant, product.size]
+    .filter(Boolean)
+    .map((value) => value.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, ""))
+    .filter(Boolean)
+    .join("-");
+  const baseSku = ["KH", productSegment, brandSegment, variantSegment].filter(Boolean).join("-");
+  const existing = new Set(existingSkus.map((sku) => sku.trim().toUpperCase()));
+
+  if (!existing.has(baseSku)) return baseSku;
+
+  let suffix = 2;
+  while (existing.has(`${baseSku}-${suffix}`)) suffix += 1;
+  return `${baseSku}-${suffix}`;
+}
 const emptyForm: ProductDraft = {
   sku: "",
   name: "",
@@ -60,6 +90,7 @@ const emptyForm: ProductDraft = {
 function ProductDrawer({
   categories,
   categoryGroups,
+  existingSkus,
   defaultCategory,
   initialProduct,
   onClose,
@@ -89,6 +120,7 @@ function ProductDrawer({
     return { ...emptyForm, category: defaultCategory ?? categories[0] ?? "" };
   });
 
+  const [skuManuallyEdited, setSkuManuallyEdited] = useState(Boolean(initialProduct));
   const [newCategory, setNewCategory] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -99,7 +131,14 @@ function ProductDrawer({
     field: keyof ProductDraft,
     value: string | number
   ) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
+    if (field === "sku") setSkuManuallyEdited(true);
+    setForm((previous) => {
+      const updated = { ...previous, [field]: value };
+      if (!initialProduct && !skuManuallyEdited && field !== "sku") {
+        updated.sku = generateProductSku(updated, existingSkus);
+      }
+      return updated;
+    });
     setError("");
   };
 
@@ -228,7 +267,7 @@ function ProductDrawer({
                     required
                     value={form.sku}
                     onChange={(event) => updateField("sku", event.target.value)}
-                    placeholder="e.g. CEM-002"
+                    placeholder="Generated from product details; editable"
                   />
                 </label>
 

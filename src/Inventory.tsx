@@ -31,7 +31,7 @@ type DatabaseProduct = {
   name: string;
   name_en: string | null;
   name_si: string | null;
-  category_id: string;
+  category_id: string | null;
   size: string | null;
   variant: string | null;
   brand: string | null;
@@ -45,7 +45,7 @@ type DatabaseProduct = {
 
 type Product = ProductDraft & {
   id: string;
-  categoryId: string;
+  categoryId: string | null;
 };
 
 type ImportRow = {
@@ -121,6 +121,7 @@ function Inventory() {
   const [error, setError] = useState("");
   const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string | null>(null);
   const [selectedLeafCategoryId, setSelectedLeafCategoryId] = useState<string | null>(null);
+  const [showUncategorized, setShowUncategorized] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -249,7 +250,7 @@ function Inventory() {
         name: row.name,
         nameEn: row.name_en ?? "",
         nameSi: row.name_si ?? "",
-        category: categoryMap.get(row.category_id) ?? "Uncategorised",
+        category: row.category_id ? (categoryMap.get(row.category_id) ?? "Uncategorised") : "Uncategorised",
         size: row.size ?? "",
         variant: row.variant ?? "",
         brand: row.brand ?? "",
@@ -281,8 +282,9 @@ function Inventory() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchesCategory =
-        selectedLeafCategoryId !== null
+      const matchesCategory = showUncategorized
+        ? product.categoryId === null || ["uncategorised", "uncategorized"].includes(product.category.trim().toLocaleLowerCase())
+        : selectedLeafCategoryId !== null
           ? product.categoryId === selectedLeafCategoryId
           : selectedMainCategoryId === null
             ? true
@@ -307,7 +309,7 @@ function Inventory() {
 
       return matchesCategory && searchableText.includes(search);
     });
-  }, [products, categories, selectedMainCategoryId, selectedLeafCategoryId, searchTerm]);
+  }, [products, categories, selectedMainCategoryId, selectedLeafCategoryId, searchTerm, showUncategorized]);
 
   const handleSaveProduct = async (draft: ProductDraft) => {
     const duplicateSku = products.some(
@@ -668,7 +670,7 @@ function Inventory() {
                 const childIds = categories
                   .filter((child) => child.parent_id === category.id)
                   .map((child) => child.id);
-                return product.categoryId === category.id || childIds.includes(product.categoryId);
+                return product.categoryId === category.id || (product.categoryId !== null && childIds.includes(product.categoryId));
               }
               return product.categoryId === category.id;
             }).length;
@@ -678,6 +680,7 @@ function Inventory() {
                 key={category.id}
                 className={`category-button ${selected ? "selected" : ""}`}
                 onClick={() => {
+                  setShowUncategorized(false);
                   setSelectedMainCategoryId(selected ? null : category.id);
                   setSelectedLeafCategoryId(hasChildren || selected ? null : category.id);
                 }}
@@ -688,6 +691,17 @@ function Inventory() {
               </button>
             );
           })}
+          <button
+            className={`category-button ${showUncategorized ? "selected" : ""}`}
+            onClick={() => {
+              setShowUncategorized((current) => !current);
+              setSelectedMainCategoryId(null);
+              setSelectedLeafCategoryId(null);
+            }}
+          >
+            <span>Uncategorized</span>
+            <small>{products.filter((product) => product.categoryId === null || ["uncategorised", "uncategorized"].includes(product.category.trim().toLocaleLowerCase())).length}</small>
+          </button>
         </div>
 
         {selectedMainCategoryId && visibleSubcategories.length > 0 && (
@@ -705,7 +719,7 @@ function Inventory() {
                   <button
                     key={category.id}
                     className={`category-button ${selectedLeafCategoryId === category.id ? "selected" : ""}`}
-                    onClick={() => setSelectedLeafCategoryId(category.id)}
+                    onClick={() => { setShowUncategorized(false); setSelectedLeafCategoryId(category.id); }}
                   >
                     <span>{category.name}</span>
                     <small>{count}</small>
@@ -720,7 +734,7 @@ function Inventory() {
       <div className="inventory-table-panel">
         <div className="inventory-table-heading">
           <div>
-            <h3>{selectedLeafCategoryId ? `${categories.find((category) => category.id === selectedLeafCategoryId)?.name ?? "Selected Category"} Products` : "Product Catalogue"}</h3>
+            <h3>{showUncategorized ? "Uncategorized Products" : selectedLeafCategoryId ? `${categories.find((category) => category.id === selectedLeafCategoryId)?.name ?? "Selected Category"} Products` : "Product Catalogue"}</h3>
             <p>
               {loading
                 ? "Loading products from Supabase..."
@@ -891,6 +905,7 @@ function Inventory() {
         <ProductDrawer
           categories={categoryNames}
           categoryGroups={categoryGroups}
+          existingSkus={products.map((product) => product.sku)}
           defaultCategory={
             selectedLeafCategoryId
               ? categories.find((category) => category.id === selectedLeafCategoryId)?.name ?? ""
