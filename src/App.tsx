@@ -70,7 +70,7 @@ const navigation = [
 ];
 
 function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,16 +80,40 @@ function LoginScreen() {
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "hardware-username-login",
+        {
+          body: {
+            username: username.trim(),
+            password,
+          },
+        }
+      );
 
-    if (error) {
-      setError(error.message);
+      if (error || !data?.access_token || !data?.refresh_token) {
+        throw new Error(
+          data?.error || "Invalid username or password."
+        );
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+
+      if (sessionError) {
+        throw sessionError;
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to sign in. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
@@ -160,16 +184,16 @@ function LoginScreen() {
               color: "#343a40",
             }}
           >
-            Email address
+            Username
           </label>
 
           <input
-            type="email"
+            type="text"
             required
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Enter your email"
+            autoComplete="username"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="Enter your username"
             style={loginInputStyle}
           />
 
@@ -247,7 +271,6 @@ function LoginScreen() {
     </div>
   );
 }
-
 const loginInputStyle = {
   width: "100%",
   boxSizing: "border-box" as const,
@@ -331,8 +354,14 @@ function App() {
     return <LoginScreen />;
   }
 
-  const userEmail = session.user.email || "Authenticated User";
-  const avatarLetter = userEmail.charAt(0).toUpperCase();
+  const username =
+    session.user.id === "7a3fc67f-88ec-4e2f-a1a7-efd32182aeb4"
+      ? "ChamikaKR"
+      : session.user.id === "1696b384-bac6-4d87-895f-75a3ad1c6c6f"
+        ? "ChandrasiriR"
+        : "User";
+  const userEmail = username;
+  const avatarLetter = username.charAt(0).toUpperCase();
 
   return (
     <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
