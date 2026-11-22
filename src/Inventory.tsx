@@ -1,15 +1,12 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
   Filter,
-  Pencil,
-  ChevronDown,
-  ChevronRight,
+  Package,
+  MoreHorizontal,
   RefreshCw,
-  Upload,
-  X,
-  FileSpreadsheet,
 } from "lucide-react";
 
 import { supabase } from "./supabase";
@@ -31,7 +28,7 @@ type DatabaseProduct = {
   name: string;
   name_en: string | null;
   name_si: string | null;
-  category_id: string | null;
+  category_id: string;
   size: string | null;
   variant: string | null;
   brand: string | null;
@@ -45,66 +42,8 @@ type DatabaseProduct = {
 
 type Product = ProductDraft & {
   id: string;
-  categoryId: string | null;
+  categoryId: string;
 };
-
-type ImportRow = {
-  sku: string;
-  name: string;
-  nameEn: string;
-  nameSi: string;
-  category: string;
-  categoryId: string | null;
-  size: string;
-  variant: string;
-  brand: string;
-  unit: string;
-  costPrice: number;
-  sellingPrice: number;
-  stock: number;
-  minimumStock: number;
-  description: string;
-  issue: string;
-};
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let quoted = false;
-  const input = text.replace(/^\uFEFF/, "");
-
-  for (let i = 0; i < input.length; i += 1) {
-    const char = input[i];
-    if (char === '"') {
-      if (quoted && input[i + 1] === '"') {
-        cell += '"';
-        i += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (char === "," && !quoted) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && input[i + 1] === "\n") i += 1;
-      row.push(cell);
-      if (row.some((value) => value.trim() !== "")) rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
-  }
-  row.push(cell);
-  if (row.some((value) => value.trim() !== "")) rows.push(row);
-  return rows;
-}
-
-function csvNumber(value: string) {
-  const number = Number(value || 0);
-  return Number.isFinite(number) ? number : NaN;
-}
 
 function formatPrice(amount: number) {
   return `LKR ${amount.toLocaleString("en-LK", {
@@ -119,24 +58,17 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string | null>(null);
-  const [selectedLeafCategoryId, setSelectedLeafCategoryId] = useState<string | null>(null);
-  const [showUncategorized, setShowUncategorized] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All Products");
   const [searchTerm, setSearchTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [message, setMessage] = useState("");
-  const [importRows, setImportRows] = useState<ImportRow[]>([]);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importFileName, setImportFileName] = useState("");
-  const [importError, setImportError] = useState("");
 
-  // A category is selectable only when it has no active child categories.
+  // Only categories without active child categories can be assigned to products.
   const leafCategories = useMemo(() => {
     const parentIds = new Set(
       categories
-        .filter((category) => category.parent_id !== null)
+        .filter((category) => category.parent_id)
         .map((category) => category.parent_id as string)
     );
 
@@ -148,68 +80,55 @@ function Inventory() {
     [leafCategories]
   );
 
-  const mainCategories = useMemo(
-    () => categories.filter((category) => category.parent_id === null),
-    [categories]
-  );
-
-  const visibleSubcategories = useMemo(
-    () =>
-      selectedMainCategoryId
-        ? categories.filter((category) => category.parent_id === selectedMainCategoryId)
-        : [],
-    [categories, selectedMainCategoryId]
-  );
-
-  // Native select optgroups display parent categories as non-selectable headings.
+  // Build dropdown groups: parent categories are labels, not selectable options.
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
     const groups: CategoryGroup[] = [];
-    const parentCategories = categories.filter((category) =>
+    const categoriesWithChildren = categories.filter((category) =>
       categories.some((child) => child.parent_id === category.id)
     );
-    const groupedLeafIds = new Set<string>();
 
-    for (const parent of parentCategories) {
-      const children = categories.filter(
-        (category) => category.parent_id === parent.id
-      );
-      const selectableChildren = children.filter((child) =>
-        leafCategories.some((leaf) => leaf.id === child.id)
-      );
+    for (const parent of categoriesWithChildren) {
+      const children = categories
+        .filter((category) => category.parent_id === parent.id)
+        .filter((child) => leafCategories.some((leaf) => leaf.id === child.id))
+        .map((child) => child.name);
 
-      selectableChildren.forEach((child) => groupedLeafIds.add(child.id));
-
-      if (selectableChildren.length > 0) {
+      if (children.length > 0) {
         groups.push({
           label: parent.name,
-          options: selectableChildren.map((child) => child.name),
+          options: children,
         });
       }
     }
 
-    const standaloneCategories = leafCategories.filter(
-      (category) =>
-        category.parent_id === null && !groupedLeafIds.has(category.id)
-    );
+    const standaloneCategories = leafCategories
+      .filter((category) => category.parent_id === null)
+      .filter(
+        (category) =>
+          !categoriesWithChildren.some((parent) => parent.id === category.id)
+      )
+      .map((category) => category.name);
 
     if (standaloneCategories.length > 0) {
       groups.push({
         label: "Other Categories",
-        options: standaloneCategories.map((category) => category.name),
+        options: standaloneCategories,
       });
     }
 
-    // Keep leaf categories visible if their parent is inactive or unavailable.
-    const orphanCategories = leafCategories.filter(
-      (category) =>
-        category.parent_id !== null &&
-        !categories.some((parent) => parent.id === category.parent_id)
-    );
+    // Include any leaf category whose parent is not currently available.
+    const ungroupedCategories = leafCategories
+      .filter(
+        (category) =>
+          category.parent_id !== null &&
+          !categories.some((parent) => parent.id === category.parent_id)
+      )
+      .map((category) => category.name);
 
-    if (orphanCategories.length > 0) {
+    if (ungroupedCategories.length > 0) {
       groups.push({
         label: "Other Categories",
-        options: orphanCategories.map((category) => category.name),
+        options: ungroupedCategories,
       });
     }
 
@@ -227,6 +146,7 @@ function Inventory() {
           .select("id, name, parent_id")
           .eq("is_active", true)
           .order("sort_order", { ascending: true }),
+
         supabase
           .from("products")
           .select("*")
@@ -239,6 +159,7 @@ function Inventory() {
 
       const categoryRows = (categoryResult.data ?? []) as CategoryRow[];
       const productRows = (productResult.data ?? []) as DatabaseProduct[];
+
       const categoryMap = new Map(
         categoryRows.map((category) => [category.id, category.name])
       );
@@ -250,7 +171,7 @@ function Inventory() {
         name: row.name,
         nameEn: row.name_en ?? "",
         nameSi: row.name_si ?? "",
-        category: row.category_id ? (categoryMap.get(row.category_id) ?? "Uncategorised") : "Uncategorised",
+        category: categoryMap.get(row.category_id) ?? "Uncategorised",
         size: row.size ?? "",
         variant: row.variant ?? "",
         brand: row.brand ?? "",
@@ -282,20 +203,12 @@ function Inventory() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchesCategory = showUncategorized
-        ? product.categoryId === null || ["uncategorised", "uncategorized"].includes(product.category.trim().toLocaleLowerCase())
-        : selectedLeafCategoryId !== null
-          ? product.categoryId === selectedLeafCategoryId
-          : selectedMainCategoryId === null
-            ? true
-            : product.categoryId === selectedMainCategoryId ||
-              categories.some(
-                (category) =>
-                  category.parent_id === selectedMainCategoryId &&
-                  category.id === product.categoryId
-              );
+      const matchesCategory =
+        selectedCategory === "All Products" ||
+        product.category === selectedCategory;
 
       const search = searchTerm.toLowerCase().trim();
+
       const searchableText = [
         product.name,
         product.nameEn,
@@ -305,11 +218,13 @@ function Inventory() {
         product.size,
         product.variant,
         product.brand,
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
 
       return matchesCategory && searchableText.includes(search);
     });
-  }, [products, categories, selectedMainCategoryId, selectedLeafCategoryId, searchTerm, showUncategorized]);
+  }, [products, selectedCategory, searchTerm]);
 
   const handleSaveProduct = async (draft: ProductDraft) => {
     const duplicateSku = products.some(
@@ -360,7 +275,9 @@ function Inventory() {
       variant: draft.variant.trim() || null,
       brand: draft.brand.trim() || null,
       unit: draft.unit,
+      cost_price: draft.costPrice,
       selling_price: draft.sellingPrice,
+      stock_quantity: draft.stock,
       minimum_stock: draft.minimumStock,
       description: draft.description.trim() || null,
     };
@@ -375,11 +292,11 @@ function Inventory() {
           .single();
 
         if (updateError) throw updateError;
+
         const updated = data as DatabaseProduct;
+
         const updatedProduct: Product = {
           ...draft,
-          costPrice: Number(updated.cost_price ?? selectedProduct.costPrice),
-          stock: Number(updated.stock_quantity ?? selectedProduct.stock),
           id: updated.id,
           categoryId: updated.category_id,
           name: updated.name,
@@ -392,16 +309,19 @@ function Inventory() {
             product.id === updatedProduct.id ? updatedProduct : product
           )
         );
+
         setMessage("Product updated successfully in Supabase.");
       } else {
         const { data, error: insertError } = await supabase
           .from("products")
-          .insert({ ...productPayload, cost_price: 0, stock_quantity: 0 })
+          .insert(productPayload)
           .select()
           .single();
 
         if (insertError) throw insertError;
+
         const inserted = data as DatabaseProduct;
+
         const newProduct: Product = {
           ...draft,
           id: inserted.id,
@@ -415,17 +335,7 @@ function Inventory() {
         setMessage("Product saved successfully to Supabase.");
       }
 
-      // Keep the inventory focused on the category where the saved product belongs.
-      // If the product was moved to another category while editing, navigate there.
-      if (selectedCategoryRow.parent_id) {
-        setSelectedMainCategoryId(selectedCategoryRow.parent_id);
-        setSelectedLeafCategoryId(selectedCategoryRow.id);
-      } else {
-        setSelectedMainCategoryId(selectedCategoryRow.id);
-        setSelectedLeafCategoryId(null);
-      }
-
-      // Clear the previous search so the newly added or updated product is visible.
+      setSelectedCategory("All Products");
       setSearchTerm("");
       setDrawerOpen(false);
       setSelectedProduct(null);
@@ -441,11 +351,12 @@ function Inventory() {
     }
   };
 
-  // A category created here is a standalone top-level category.
+  // New categories are created as standalone categories at the top level.
   const handleAddCategory = async (
     categoryName: string
   ): Promise<string | null> => {
     const cleanedCategory = categoryName.trim();
+
     if (!cleanedCategory) return null;
 
     const existing = categories.find(
@@ -457,7 +368,9 @@ function Inventory() {
       const hasChildren = categories.some(
         (category) => category.parent_id === existing.id
       );
-      return hasChildren ? null : existing.name;
+
+      if (hasChildren) return null;
+      return existing.name;
     }
 
     try {
@@ -468,8 +381,11 @@ function Inventory() {
         .single();
 
       if (insertError) throw insertError;
+
       const newCategory = data as CategoryRow;
+
       setCategories((previous) => [...previous, newCategory]);
+
       return newCategory.name;
     } catch (err) {
       console.error("Category creation error:", err);
@@ -482,99 +398,6 @@ function Inventory() {
     }
   };
 
-  const handleImportFile = async (file?: File) => {
-    if (!file) return;
-    setImportError("");
-    setImportFileName(file.name);
-    try {
-      const raw = parseCsv(await file.text());
-      if (raw.length < 2) throw new Error("The CSV file does not contain any product rows.");
-      const headers = raw[0].map((header) => header.trim().toLowerCase());
-      const required = ["sku", "name", "category"];
-      const missing = required.filter((header) => !headers.includes(header));
-      if (missing.length) throw new Error(`Missing required CSV columns: ${missing.join(", ")}`);
-      const index = (key: string) => headers.indexOf(key);
-      const get = (cells: string[], key: string) => {
-        const at = index(key);
-        return at >= 0 ? (cells[at] ?? "").trim() : "";
-      };
-      const categoryMap = new Map(categories.map((category) => [category.name.toLowerCase(), category]));
-      const seen = new Set<string>();
-      const parsed: ImportRow[] = raw.slice(1).map((cells) => {
-        const sku = get(cells, "sku");
-        const name = get(cells, "name");
-        const categoryName = get(cells, "category");
-        const category = categoryMap.get(categoryName.toLowerCase());
-        const duplicateInFile = sku && seen.has(sku.toLowerCase());
-        if (sku) seen.add(sku.toLowerCase());
-        const costPrice = csvNumber(get(cells, "cost_price"));
-        const sellingPrice = csvNumber(get(cells, "selling_price"));
-        const stock = csvNumber(get(cells, "stock_quantity"));
-        const minimumStock = csvNumber(get(cells, "minimum_stock"));
-        const numericInvalid = [costPrice, sellingPrice, stock, minimumStock].some((value) => !Number.isFinite(value) || value < 0);
-        const issue = !sku ? "Missing SKU" : !name ? "Missing product name" : !category ? `Category not found: ${categoryName || "blank"}` : duplicateInFile ? "Duplicate SKU in this CSV" : numericInvalid ? "Invalid or negative numeric value" : "";
-        return {
-          sku, name, nameEn: get(cells, "name_en"), nameSi: get(cells, "name_si"),
-          category: categoryName, categoryId: category?.id ?? null,
-          size: get(cells, "size"), variant: get(cells, "variant"), brand: get(cells, "brand"),
-          unit: get(cells, "unit") || "Piece",
-          costPrice: Number.isFinite(costPrice) ? costPrice : 0,
-          sellingPrice: Number.isFinite(sellingPrice) ? sellingPrice : 0,
-          stock: Number.isFinite(stock) ? stock : 0,
-          minimumStock: Number.isFinite(minimumStock) ? minimumStock : 0,
-          description: get(cells, "description"),
-          issue,
-        };
-      });
-      setImportRows(parsed);
-      setImportOpen(true);
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : "Unable to read this CSV file.");
-    }
-  };
-
-  const confirmImport = async () => {
-    const readyRows = importRows.filter((row) => row.categoryId && !row.issue.startsWith("Missing") && !row.issue.startsWith("Category") && !row.issue.startsWith("Duplicate") && !row.issue.startsWith("Invalid"));
-    if (readyRows.length === 0) {
-      setImportError("There are no valid rows to import.");
-      return;
-    }
-    setImporting(true);
-    setImportError("");
-    try {
-      const { data: existingProducts, error: skuError } = await supabase
-        .from("products")
-        .select("sku");
-      if (skuError) throw skuError;
-      const existingSkuSet = new Set(
-        (existingProducts ?? []).map((item: { sku: string }) => item.sku.toLowerCase())
-      );
-      const duplicates = readyRows.filter((row) => existingSkuSet.has(row.sku.toLowerCase()));
-      if (duplicates.length) {
-        setImportError(`${duplicates.length} SKU(s) already exist in the database: ${duplicates.slice(0, 5).map((row) => row.sku).join(", ")}${duplicates.length > 5 ? "…" : ""}. Remove or change these rows in the CSV and upload again. Nothing was imported.`);
-        return;
-      }
-      const payload = readyRows.map((row) => ({
-        sku: row.sku, name: row.name, name_en: row.nameEn || null, name_si: row.nameSi || null,
-        category_id: row.categoryId, size: row.size || null, variant: row.variant || null,
-        brand: row.brand || null, unit: row.unit, cost_price: 0,
-        selling_price: row.sellingPrice, stock_quantity: 0,
-        minimum_stock: row.minimumStock, description: row.description || null,
-      }));
-      const { error: insertError } = await supabase.from("products").insert(payload);
-      if (insertError) throw insertError;
-      setImportOpen(false);
-      setImportRows([]);
-      setImportFileName("");
-      setMessage(`Successfully imported ${payload.length} products. Refreshing catalogue...`);
-      await loadInventory();
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : "The products could not be imported.");
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <div className="inventory-page">
       <div className="inventory-heading">
@@ -583,12 +406,7 @@ function Inventory() {
           <p>Manage your products, stock levels and pricing.</p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <label className="inventory-filter-button" style={{ cursor: "pointer" }}>
-            <Upload size={16} />
-            Bulk Import CSV
-            <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(event) => { void handleImportFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-          </label>
+        <div style={{ display: "flex", gap: "10px" }}>
           <button
             className="inventory-filter-button"
             onClick={() => void loadInventory()}
@@ -598,6 +416,7 @@ function Inventory() {
             <RefreshCw size={16} />
             Refresh
           </button>
+
           <button
             className="inventory-add-button"
             onClick={() => {
@@ -641,11 +460,11 @@ function Inventory() {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
+
         <button
           className="inventory-filter-button"
           onClick={() => {
-            setSelectedMainCategoryId(null);
-            setSelectedLeafCategoryId(null);
+            setSelectedCategory("All Products");
             setSearchTerm("");
           }}
         >
@@ -654,106 +473,44 @@ function Inventory() {
         </button>
       </div>
 
-      <section className="inventory-category-browser">
-        <div className="inventory-table-heading">
-          <div>
-            <h3>Main Categories</h3>
-            <p>Select a category to view its subcategories.</p>
-          </div>
-          <span className="inventory-record-count">{mainCategories.length} categories</span>
-        </div>
-        <div className="inventory-categories">
-          {mainCategories.map((category) => {
-            const hasChildren = categories.some((child) => child.parent_id === category.id);
-            const count = products.filter((product) => {
-              if (hasChildren) {
-                const childIds = categories
-                  .filter((child) => child.parent_id === category.id)
-                  .map((child) => child.id);
-                return product.categoryId === category.id || (product.categoryId !== null && childIds.includes(product.categoryId));
-              }
-              return product.categoryId === category.id;
-            }).length;
-            const selected = selectedMainCategoryId === category.id;
-            return (
-              <button
-                key={category.id}
-                className={`category-button ${selected ? "selected" : ""}`}
-                onClick={() => {
-                  setShowUncategorized(false);
-                  setSelectedMainCategoryId(selected ? null : category.id);
-                  setSelectedLeafCategoryId(hasChildren || selected ? null : category.id);
-                }}
-              >
-                <span>{category.name}</span>
-                <small>{count}</small>
-                {hasChildren && (selected ? <ChevronDown size={15} /> : <ChevronRight size={15} />)}
-              </button>
-            );
-          })}
-          <button
-            className={`category-button ${showUncategorized ? "selected" : ""}`}
-            onClick={() => {
-              setShowUncategorized((current) => !current);
-              setSelectedMainCategoryId(null);
-              setSelectedLeafCategoryId(null);
-            }}
-          >
-            <span>Uncategorized</span>
-            <small>{products.filter((product) => product.categoryId === null || ["uncategorised", "uncategorized"].includes(product.category.trim().toLocaleLowerCase())).length}</small>
-          </button>
-        </div>
+      <div className="inventory-categories">
+        {["All Products", ...categoryNames].map((category) => {
+          const count =
+            category === "All Products"
+              ? products.length
+              : products.filter((product) => product.category === category)
+                  .length;
 
-        {selectedMainCategoryId && visibleSubcategories.length > 0 && (
-          <div className="inventory-subcategory-section">
-            <div className="inventory-table-heading">
-              <div>
-                <h3>{categories.find((category) => category.id === selectedMainCategoryId)?.name} — Subcategories</h3>
-                <p>Select a subcategory to display its products below.</p>
-              </div>
-            </div>
-            <div className="inventory-categories">
-              {visibleSubcategories.map((category) => {
-                const count = products.filter((product) => product.categoryId === category.id).length;
-                return (
-                  <button
-                    key={category.id}
-                    className={`category-button ${selectedLeafCategoryId === category.id ? "selected" : ""}`}
-                    onClick={() => { setShowUncategorized(false); setSelectedLeafCategoryId(category.id); }}
-                  >
-                    <span>{category.name}</span>
-                    <small>{count}</small>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </section>
+          return (
+            <button
+              key={category}
+              className={`category-button ${
+                selectedCategory === category ? "selected" : ""
+              }`}
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category === "All Products" && <Package size={16} />}
+              <span>{category}</span>
+              <small>{count}</small>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="inventory-table-panel">
         <div className="inventory-table-heading">
           <div>
-            <h3>{showUncategorized ? "Uncategorized Products" : selectedLeafCategoryId ? `${categories.find((category) => category.id === selectedLeafCategoryId)?.name ?? "Selected Category"} Products` : "Product Catalogue"}</h3>
+            <h3>Product Catalogue</h3>
             <p>
               {loading
                 ? "Loading products from Supabase..."
                 : `Showing ${filteredProducts.length} products`}
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="inventory-record-count">{products.length} records</span>
-            <button
-              className="inventory-add-button"
-              onClick={() => {
-                setMessage("");
-                setSelectedProduct(null);
-                setDrawerOpen(true);
-              }}
-            >
-              <Plus size={16} /> Add Product
-            </button>
-          </div>
+
+          <span className="inventory-record-count">
+            {products.length} records
+          </span>
         </div>
 
         <div className="table-scroll">
@@ -772,6 +529,7 @@ function Inventory() {
                 <th></th>
               </tr>
             </thead>
+
             <tbody>
               {loading && (
                 <tr>
@@ -791,30 +549,38 @@ function Inventory() {
                   return (
                     <tr key={product.id}>
                       <td className="product-sku">{product.sku}</td>
+
                       <td className="product-name">
-                        <div>{product.name}</div>
+                        <div>{product.nameEn || product.name}</div>
                         {product.nameSi && <small>{product.nameSi}</small>}
                       </td>
+
                       <td>{product.category}</td>
+
                       <td>
                         {[product.size, product.variant]
                           .filter(Boolean)
                           .join(" / ") || "—"}
                       </td>
+
                       <td>{product.unit}</td>
+
                       <td>
                         {product.costPrice > 0
                           ? formatPrice(product.costPrice)
                           : "Not entered"}
                       </td>
+
                       <td>
                         {product.sellingPrice > 0
                           ? formatPrice(product.sellingPrice)
                           : "Not entered"}
                       </td>
+
                       <td className="stock-number">
                         {product.stock === 0 ? "Not entered" : product.stock}
                       </td>
+
                       <td>
                         <span
                           className={`stock-status ${
@@ -832,17 +598,18 @@ function Inventory() {
                             : "In Stock"}
                         </span>
                       </td>
+
                       <td>
                         <button
                           className="product-more-button"
-                          title="Edit product"
+                          title="More product actions"
                           onClick={() => {
                             setMessage("");
                             setSelectedProduct(product);
                             setDrawerOpen(true);
                           }}
                         >
-                          <><Pencil size={16} /> Edit</>
+                          <MoreHorizontal size={18} />
                         </button>
                       </td>
                     </tr>
@@ -852,9 +619,7 @@ function Inventory() {
               {!loading && filteredProducts.length === 0 && (
                 <tr>
                   <td colSpan={10} className="inventory-empty">
-                    {selectedLeafCategoryId
-                      ? "No products found in this category. You can add a product using the Add Product button."
-                      : "No products found. Select a category or change your search."}
+                    No products found. Try another search or category.
                   </td>
                 </tr>
               )}
@@ -869,48 +634,10 @@ function Inventory() {
         verification.
       </p>
 
-      {importOpen && (
-        <div className="drawer-overlay" onMouseDown={() => !importing && setImportOpen(false)}>
-          <section className="product-drawer" style={{ width: "min(1000px, 96vw)", maxWidth: "96vw" }} onMouseDown={(event) => event.stopPropagation()}>
-            <div className="drawer-header">
-              <div>
-                <h2><FileSpreadsheet size={19} style={{ verticalAlign: "middle", marginRight: 8 }} />Review CSV Import</h2>
-                <p>{importFileName} · {importRows.length} product rows detected</p>
-              </div>
-              <button className="drawer-close" onClick={() => setImportOpen(false)} disabled={importing} aria-label="Close import preview"><X size={20} /></button>
-            </div>
-            <div className="drawer-body">
-              <div className="inventory-message" role="note">Existing products will not be overwritten. Rows with missing categories or duplicate SKUs must be corrected before importing. Selling prices and minimum-stock alerts are imported; opening stock and purchase cost start at 0. Record received stock through Purchases and verified quantities through Stock Count.</div>
-              {importError && <div className="drawer-error" role="alert">{importError}</div>}
-              <div style={{ overflowX: "auto", maxHeight: "55vh", border: "1px solid #e2e6eb", borderRadius: 8 }}>
-                <table className="inventory-table">
-                  <thead><tr><th>SKU</th><th>Product</th><th>Category</th><th>Size</th><th>CSV Cost*</th><th>Selling</th><th>CSV Stock*</th><th>Validation</th></tr></thead>
-                  <tbody>{importRows.map((row, index) => <tr key={`${row.sku}-${index}`}>
-                    <td className="product-sku">{row.sku || "—"}</td><td>{row.name || "—"}</td><td>{row.category || "—"}</td><td>{row.size || "—"}</td><td>{row.costPrice.toLocaleString("en-LK")}</td><td>{row.sellingPrice.toLocaleString("en-LK")}</td><td>{row.stock}</td>
-                    <td><span className={`stock-status ${row.issue ? "low" : "available"}`}>{row.issue || "Ready · DB check"}</span></td>
-                  </tr>)}</tbody>
-                </table>
-              </div>
-              <p style={{ color: "#64748b", fontSize: 13, marginTop: 12 }}>*CSV cost and stock values are shown for reference only and are not imported. New products start with zero stock and zero purchase cost. Database duplicate checks run on confirmation; if any duplicate is found, the entire import is cancelled.</p>
-            </div>
-            <div className="drawer-footer" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <button type="button" className="inventory-filter-button" onClick={() => setImportOpen(false)} disabled={importing}>Cancel</button>
-              <button type="button" className="inventory-add-button" onClick={() => void confirmImport()} disabled={importing || importRows.length === 0}>{importing ? "Importing..." : `Import ${importRows.filter((row) => !row.issue && row.categoryId).length} Products`}</button>
-            </div>
-          </section>
-        </div>
-      )}
-
       {drawerOpen && (
         <ProductDrawer
           categories={categoryNames}
           categoryGroups={categoryGroups}
-          existingSkus={products.map((product) => product.sku)}
-          defaultCategory={
-            selectedLeafCategoryId
-              ? categories.find((category) => category.id === selectedLeafCategoryId)?.name ?? ""
-              : ""
-          }
           initialProduct={selectedProduct ?? undefined}
           onClose={() => {
             setDrawerOpen(false);
