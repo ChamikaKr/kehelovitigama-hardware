@@ -471,11 +471,17 @@ function App() {
                   <span>Record Sale</span>
                   <small>Record a sale and related stock movement</small>
                 </button>
+                <button className="mobile-action-card" onClick={() => setActivePage("Cheque Calendar")}>
+                  <CalendarDays size={25} />
+                  <span>Cheque Calendar</span>
+                  <small>View upcoming and pending cheques</small>
+                </button>
                 <button className="mobile-action-card" onClick={() => setActivePage("Sales History")}>
                   <Receipt size={25} />
                   <span>Recent Activity</span>
                   <small>Review recorded sales</small>
                 </button>
+
               </section>
 
               <div className="date-label">BUSINESS OVERVIEW</div>
