@@ -638,6 +638,7 @@ function Inventory() {
         <ProductDrawer
           categories={categoryNames}
           categoryGroups={categoryGroups}
+          existingSkus={products.map((product) => product.sku)}
           initialProduct={selectedProduct ?? undefined}
           onClose={() => {
             setDrawerOpen(false);
