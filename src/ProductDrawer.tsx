@@ -25,17 +25,12 @@ export type CategoryGroup = {
   options: string[];
 };
 
-type InitialProduct = ProductDraft & {
-  id: string;
-  categoryId: string;
-};
-
 type ProductDrawerProps = {
   categories: string[];
   categoryGroups: CategoryGroup[];
   existingSkus: string[];
   defaultCategory?: string;
-  initialProduct?: InitialProduct;
+  initialProduct?: ProductDraft;
   onClose: () => void;
   onSave: (product: ProductDraft) => void | Promise<void>;
   onAddCategory: (category: string) => Promise<string | null>;
