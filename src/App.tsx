@@ -8,6 +8,8 @@ import SalesHistory from "./SalesHistory";
 import StockCount from "./StockCount";
 import Purchases from "./Purchases";
 import SupplierManagement from "./SupplierManagement";
+import ChequeManagement from "./ChequeManagement";
+import FinancialManagement from "./FinancialManagement";
 import { supabase } from "./supabase";
 
 import {
@@ -22,7 +24,6 @@ import {
   ChartNoAxesCombined,
   Wallet,
   Building2,
-  FileText,
   ArrowLeftRight,
   Settings,
   Search,
@@ -36,6 +37,7 @@ import {
   PanelLeftOpen,
   Menu,
   X,
+  CalendarDays,
 } from "lucide-react";
 
 import type { Session } from "@supabase/supabase-js";
@@ -59,9 +61,9 @@ const navigation = [
   {
     title: "FINANCIAL MANAGEMENT",
     items: [
-      { name: "Financial Overview", icon: Wallet },
+      { name: "Cheque Calendar", icon: CalendarDays },
       { name: "Bank Accounts & OD", icon: Building2 },
-      { name: "Cheque Management", icon: FileText },
+      { name: "Financial Management", icon: Wallet },
       { name: "Transactions", icon: ArrowLeftRight },
     ],
   },
@@ -660,6 +662,12 @@ function App() {
             <SalesHistory />
           ) : activePage === "Suppliers" ? (
             <SupplierManagement />
+          ) : activePage === "Financial Management" ? (
+            <FinancialManagement onNavigate={setActivePage} />
+          ) : activePage === "Cheque Calendar" || activePage === "Cheque Management" ? (
+            <ChequeManagement />
+          ) : activePage === "Bank Accounts & OD" ? (
+            <ChequeManagement mode="accounts" />
           ) : activePage === "Settings & Users" ? (
             <SettingsManagement userEmail={userEmail} />
           ) : (
