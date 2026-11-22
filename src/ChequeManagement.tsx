@@ -37,6 +37,8 @@ export default function ChequeManagement({ mode = "calendar" }: { mode?: "calend
   const [notes, setNotes] = useState("");
   const [filterAccount, setFilterAccount] = useState("all");
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [accountDraft, setAccountDraft] = useState<Account | null>(null);
+  const [accountSaveMessage, setAccountSaveMessage] = useState("");
 
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -65,8 +67,42 @@ export default function ChequeManagement({ mode = "calendar" }: { mode?: "calend
     setCheques((items) => [...items, { id: crypto.randomUUID(), supplier: supplier.trim(), account: accountId, chequeBook: book, chequeNumber: chequeNumber.trim(), amount: Number(amount), chequeDate, issueDate, purpose, notes: notes.trim(), status: "Pending" }]);
     setSelectedDate(chequeDate); setMonth(new Date(`${chequeDate}T00:00:00`)); setShowForm(false);
   }
-  function updateAccount(id: string, field: "bank" | "openingBalance" | "odLimit" | "name" | "chequeBook", value: string) {
-    setAccounts((items) => items.map((item) => item.id === id ? { ...item, [field]: field === "openingBalance" || field === "odLimit" ? Number(value) || 0 : value } : item));
+  function startEditingAccount(account: Account) {
+    setAccountDraft({ ...account });
+    setEditingAccount(account.id);
+    setAccountSaveMessage("");
+  }
+
+  function updateAccount(field: "bank" | "openingBalance" | "odLimit" | "name" | "chequeBook", value: string) {
+    setAccountDraft((current) => current ? {
+      ...current,
+      [field]: field === "openingBalance" || field === "odLimit"
+        ? (value === "" ? 0 : Math.max(0, Number(value) || 0))
+        : value,
+    } : current);
+  }
+
+  function saveAccountDetails(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accountDraft || !accountDraft.name.trim() || !accountDraft.bank.trim() || !accountDraft.chequeBook.trim()) {
+      setAccountSaveMessage("Please complete the account name, bank name and cheque book.");
+      return;
+    }
+
+    setAccounts((items) => items.map((item) =>
+      item.id === accountDraft.id
+        ? { ...accountDraft, name: accountDraft.name.trim(), bank: accountDraft.bank.trim(), chequeBook: accountDraft.chequeBook.trim() }
+        : item
+    ));
+    setEditingAccount(null);
+    setAccountDraft(null);
+    setAccountSaveMessage("Bank account details saved for this session.");
+  }
+
+  function cancelAccountEdit() {
+    setEditingAccount(null);
+    setAccountDraft(null);
+    setAccountSaveMessage("");
   }
   function accountMetrics(account: Account) {
     const reserved = cheques.filter((item) => item.account === account.id && item.status === "Pending").reduce((sum, item) => sum + item.amount, 0);
@@ -76,14 +112,44 @@ export default function ChequeManagement({ mode = "calendar" }: { mode?: "calend
 
   if (mode === "accounts") return <div className="cheque-module">
     <div className="cheque-page-heading"><div><div className="cheque-eyebrow">FINANCIAL MANAGEMENT</div><h1>Bank Accounts &amp; OD</h1><p>Manage both bank accounts, cheque books and overdraft facilities in one place.</p></div></div>
+    {accountSaveMessage && <div className="module-note" role="status"><AlertCircle size={17}/><p>{accountSaveMessage}</p></div>}
     <div className="bank-account-grid">{accounts.map((account, index) => {
       const metrics = accountMetrics(account);
+      const isEditing = editingAccount === account.id && accountDraft?.id === account.id;
       return <section className="bank-account-card" key={account.id}>
-        <div className="bank-card-top"><div className="bank-icon"><Building2 size={20}/></div><span className="bank-card-label">ACCOUNT {index + 1}</span><button className="quiet-button" onClick={() => setEditingAccount(editingAccount === account.id ? null : account.id)}>{editingAccount === account.id ? "Close" : "Edit details"}</button></div>
-        {editingAccount === account.id ? <div className="account-edit-grid"><label>Account name<input value={account.name} onChange={(e) => updateAccount(account.id, "name", e.target.value)}/></label><label>Bank name<input value={account.bank} onChange={(e) => updateAccount(account.id, "bank", e.target.value)}/></label><label>Opening / current balance (LKR)<input type="number" value={account.openingBalance} onChange={(e) => updateAccount(account.id, "openingBalance", e.target.value)}/></label><label>OD limit (LKR)<input type="number" value={account.odLimit} onChange={(e) => updateAccount(account.id, "odLimit", e.target.value)}/></label><label>Linked cheque book<input value={account.chequeBook} onChange={(e) => updateAccount(account.id, "chequeBook", e.target.value)}/></label></div> : <><h2>{account.name}</h2><p className="bank-name">{account.bank}</p><div className="account-balance-row"><span>Available funds incl. OD</span><strong>{money(metrics.available)}</strong></div><div className="account-metrics"><div><span>Bank balance</span><strong>{money(metrics.balance)}</strong></div><div><span>OD limit</span><strong>{money(account.odLimit)}</strong></div><div><span>Cheque reservations</span><strong>{money(metrics.reserved)}</strong></div><div><span>Remaining OD*</span><strong>{money(metrics.odRemaining)}</strong></div></div><div className="cheque-book-strip"><BookOpen size={17}/><div><strong>{account.chequeBook}</strong><span>Linked to this account</span></div></div></>}
+        <div className="bank-card-top"><div className="bank-icon"><Building2 size={20}/></div><span className="bank-card-label">ACCOUNT {index + 1}</span>
+          {!isEditing && <button type="button" className="quiet-button" onClick={() => startEditingAccount(account)}>Edit details</button>}
+        </div>
+        {isEditing && accountDraft ? (
+          <form onSubmit={saveAccountDetails}>
+            <div className="account-edit-grid">
+              <label>Account name<input required value={accountDraft.name} onChange={(e) => updateAccount("name", e.target.value)} /></label>
+              <label>Bank name<input required value={accountDraft.bank} onChange={(e) => updateAccount("bank", e.target.value)} /></label>
+              <label>Opening / current balance (LKR)<input type="number" min="0" step="0.01" value={accountDraft.openingBalance} onChange={(e) => updateAccount("openingBalance", e.target.value)} /></label>
+              <label>OD limit (LKR)<input type="number" min="0" step="0.01" value={accountDraft.odLimit} onChange={(e) => updateAccount("odLimit", e.target.value)} /></label>
+              <label>Linked cheque book<input required value={accountDraft.chequeBook} onChange={(e) => updateAccount("chequeBook", e.target.value)} /></label>
+            </div>
+            <div className="cheque-form-actions">
+              <button type="button" className="cheque-secondary-button" onClick={cancelAccountEdit}>Cancel</button>
+              <button type="submit" className="cheque-primary-button">Save Changes</button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <h2>{account.name}</h2><p className="bank-name">{account.bank}</p>
+            <div className="account-balance-row"><span>Available funds incl. OD</span><strong>{money(metrics.available)}</strong></div>
+            <div className="account-metrics">
+              <div><span>Bank balance</span><strong>{money(metrics.balance)}</strong></div>
+              <div><span>OD limit</span><strong>{money(account.odLimit)}</strong></div>
+              <div><span>Cheque reservations</span><strong>{money(metrics.reserved)}</strong></div>
+              <div><span>Remaining OD*</span><strong>{money(metrics.odRemaining)}</strong></div>
+            </div>
+            <div className="cheque-book-strip"><BookOpen size={17}/><div><strong>{account.chequeBook}</strong><span>Linked to this account</span></div></div>
+          </>
+        )}
       </section>;
     })}</div>
-    <div className="module-note"><AlertCircle size={17}/><p>These account values are currently a local interface preview. Bank reconciliation and live balance calculations will be connected after the database migration is configured. *OD figures shown here are indicative.</p></div>
+    <div className="module-note"><AlertCircle size={17}/><p>Bank account edits are currently held in React state for this session only. They are not yet stored in Supabase and may reset when the page is refreshed. *OD figures shown here are indicative.</p></div>
   </div>;
 
   return <div className="cheque-module">
