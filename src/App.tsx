@@ -743,10 +743,10 @@ function App() {
         <button className={activePage === "Purchases" ? "active" : ""} onClick={() => { setActivePage("Purchases"); setMobileMenuOpen(false); }}>
           <ShoppingCart size={20} /><span>Purchases</span>
         </button>
-        <button className={activePage === "Sales / POS" ? "active" : ""} onClick={() => { setActivePage("Sales / POS"); setMobileMenuOpen(false); }}>
-          <ShoppingBag size={20} /><span>Sales</span>
+        <button className={activePage === "Cheque Calendar" || activePage === "Cheque Management" ? "active" : ""} onClick={() => { setActivePage("Cheque Calendar"); setMobileMenuOpen(false); }}>
+          <CalendarDays size={20} /><span>Cheques</span>
         </button>
-        <button className={mobileMenuOpen || (activePage !== "Dashboard" && activePage !== "Stock & Inventory" && activePage !== "Purchases" && activePage !== "Sales / POS") ? "active" : ""} onClick={() => setMobileMenuOpen((open) => !open)}>
+        <button className={mobileMenuOpen || (activePage !== "Dashboard" && activePage !== "Stock & Inventory" && activePage !== "Purchases" && activePage !== "Cheque Calendar" && activePage !== "Cheque Management") ? "active" : ""} onClick={() => setMobileMenuOpen((open) => !open)}>
           {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}<span>More</span>
         </button>
       </nav>

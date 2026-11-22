@@ -46,6 +46,12 @@ export default function ChequeManagement({ mode = "calendar" }: { mode?: "calend
   const monthLabel = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const selectedCheques = useMemo(() => cheques.filter((item) => item.chequeDate === selectedDate && (filterAccount === "all" || item.account === filterAccount)), [cheques, selectedDate, filterAccount]);
   const selectedTotal = selectedCheques.filter((item) => item.status === "Pending").reduce((sum, item) => sum + item.amount, 0);
+  const upcomingCheques = useMemo(
+    () => cheques
+      .filter((item) => item.status === "Pending" && item.chequeDate >= isoDate(today))
+      .sort((a, b) => a.chequeDate.localeCompare(b.chequeDate)),
+    [cheques]
+  );
   const accountForForm = accounts.find((item) => item.id === accountId) ?? accounts[0];
 
   function openAdd(date = selectedDate) {
@@ -93,6 +99,39 @@ export default function ChequeManagement({ mode = "calendar" }: { mode?: "calend
         return <button key={date} className={`calendar-day ${selectedDate === date ? "selected" : ""} ${date === isoDate(today) ? "today" : ""}`} onClick={() => openAdd(date)}><span className="calendar-day-number">{day}</span>{dayCheques.length > 0 && <><span className="calendar-day-count">{dayCheques.length} cheque{dayCheques.length > 1 ? "s" : ""}</span><span className="calendar-day-total">{money(total)}</span><span className="calendar-dot-row"><i/></span></>}</button>;
       })}</div>
       <div className="calendar-legend"><span><i className="legend-dot pending"/> Pending</span><span><i className="legend-dot cleared"/> Cleared</span><span><i className="legend-dot cancelled"/> Cancelled</span></div>
+    </section>
+    <section className="selected-date-panel">
+      <div className="selected-date-heading">
+        <div>
+          <span className="cheque-eyebrow">UPCOMING CHEQUES</span>
+          <h2>Upcoming cheque details</h2>
+          <p>{upcomingCheques.length} pending cheque{upcomingCheques.length === 1 ? "" : "s"} scheduled · Total {money(upcomingCheques.reduce((sum, item) => sum + item.amount, 0))}</p>
+        </div>
+      </div>
+      {upcomingCheques.length === 0 ? (
+        <div className="cheque-empty-state">
+          <div><CalendarDays size={24}/></div>
+          <strong>No upcoming cheques</strong>
+          <p>Pending cheques dated today or later will appear here.</p>
+        </div>
+      ) : (
+        <div className="issued-cheque-list">
+          {upcomingCheques.map((item) => (
+            <article className="issued-cheque-row" key={`upcoming-${item.id}`}>
+              <div className="issued-cheque-icon"><BookOpen size={18}/></div>
+              <div className="issued-cheque-main">
+                <strong>{item.supplier}</strong>
+                <span>Cheque #{item.chequeNumber} · {item.chequeBook}</span>
+                <small>{accounts.find((account) => account.id === item.account)?.name} · {item.purpose}</small>
+              </div>
+              <div className="issued-cheque-end">
+                <strong>{money(item.amount)}</strong>
+                <span>{new Date(`${item.chequeDate}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
     <section className="selected-date-panel">
       <div className="selected-date-heading"><div><span className="cheque-eyebrow">SELECTED DATE</span><h2>{new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h2><p>{selectedCheques.length} cheque{selectedCheques.length === 1 ? "" : "s"} scheduled · Pending total {money(selectedTotal)}</p></div><button className="cheque-primary-button" onClick={() => openAdd(selectedDate)}><Plus size={17}/> Add Cheque</button></div>
