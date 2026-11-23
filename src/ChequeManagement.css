@@ -6,8 +6,38 @@
 
 .cheque-tabs{display:flex;gap:6px;border-bottom:1px solid #e7eaed;margin:-3px 0 18px;padding-bottom:0}.cheque-tabs button{display:flex;align-items:center;gap:8px;border:0;border-bottom:2px solid transparent;background:transparent;padding:12px 14px;margin-bottom:-1px;color:#74808b;font-size:12px;font-weight:650;cursor:pointer}.cheque-tabs button.active{color:#28313a;border-bottom-color:#343c45}.cheque-tabs button span{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#eef1f3;font-size:10px}.issued-tab-panel{margin-top:0}.issued-toolbar{display:flex;gap:10px;margin-top:18px;padding:14px 0;border-top:1px solid #eef0f2}.issued-search{display:flex;align-items:center;gap:8px;flex:1;min-width:0;border:1px solid #e1e5e8;border-radius:7px;padding:0 10px;color:#7b858f}.issued-search input{width:100%;height:36px;border:0;outline:0;font-size:11px;background:transparent;color:#28323b}.issued-toolbar select{border:1px solid #e1e5e8;border-radius:7px;padding:0 10px;background:#fff;color:#303943;font-size:11px}@media(max-width:700px){.cheque-tabs button{flex:1;justify-content:center;padding:11px 6px;font-size:10px}.issued-toolbar{flex-direction:column}.issued-toolbar select{height:38px}}
 
-
-/* Issued Cheques register - UI phase */
+/* Cheque Management UI tabs and issued-cheque register */
+.cheque-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 5px;
+  width: fit-content;
+  max-width: 100%;
+  background: #eef0f2;
+  border: 1px solid #e3e6e9;
+  border-radius: 10px;
+}
+.cheque-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 15px;
+  background: transparent;
+  color: #59636e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cheque-tabs button.active {
+  background: #ffffff;
+  color: #252a30;
+  box-shadow: 0 1px 3px rgba(20, 30, 40, .10);
+}
 .issued-register-panel {
   background: #fff;
   border: 1px solid #e5e8eb;
@@ -15,18 +45,44 @@
   padding: 22px;
 }
 .issued-register-heading {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 .issued-register-heading h2 { margin: 0 0 5px; font-size: 18px; color: #252a30; }
 .issued-register-heading p { margin: 0; color: #78828d; font-size: 13px; }
-.issued-register-heading > strong { color: #59636e; background: #f1f3f5; border-radius: 20px; padding: 6px 11px; font-size: 12px; }
-.issued-register-filters {
-  display: grid; grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) minmax(160px, 200px); gap: 10px; margin-bottom: 16px;
+.issued-register-heading > strong {
+  color: #59636e;
+  background: #f1f3f5;
+  border-radius: 20px;
+  padding: 6px 11px;
+  font-size: 12px;
 }
-.issued-register-filters input, .issued-register-filters select {
-  box-sizing: border-box; width: 100%; min-width: 0; min-height: 42px; padding: 9px 11px; border: 1px solid #dfe3e7; border-radius: 7px; background: #fff; color: #303840; font: inherit; font-size: 13px;
+.issued-register-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) minmax(160px, 200px);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.issued-register-filters input,
+.issued-register-filters select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #dfe3e7;
+  border-radius: 7px;
+  background: #fff;
+  color: #303840;
+  font: inherit;
+  font-size: 13px;
 }
 @media (max-width: 640px) {
+  .cheque-tabs { width: 100%; }
+  .cheque-tabs button { flex: 1; padding: 10px 8px; font-size: 12px; }
   .issued-register-panel { padding: 14px; }
   .issued-register-filters { grid-template-columns: 1fr; }
   .issued-register-heading { align-items: flex-start; }
